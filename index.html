@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sectoare Plutonul 5 - CNMDC</title>
+    <style>
+        :root {
+            --primary: #002b49;
+            --bg: #f4f6f9;
+            --danger: #d9534f;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 15px;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: var(--primary);
+            margin-bottom: 5px;
+            font-size: 22px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+        .login-box {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #eef2f5;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary);
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin-top: 6px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 15px;
+        }
+        .sector-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fff;
+        }
+        .sector-title {
+            font-weight: bold;
+            font-size: 15px;
+        }
+        .btn {
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 13px;
+        }
+        .btn-claim {
+            background-color: var(--primary);
+            color: white;
+        }
+        .btn-release {
+            background-color: var(--danger);
+            color: white;
+        }
+        .btn-disabled {
+            background-color: #e9ecef;
+            color: #6c757d;
+            cursor: not-allowed;
+            border: 1px solid #ced4da;
+        }
+        .status-bar {
+            text-align: center;
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Plutonul 5 (9 E)</h1>
+    <div class="subtitle">Rezervare Sectoare Live - CNMDC</div>
+
+    <div class="login-box">
+        <label for="studentName"><strong>Nume și Prenume:</strong></label>
+        <input type="text" id="studentName" placeholder="Ex: Andrei Trifanov" oninput="saveName()">
+    </div>
+
+    <div class="status-bar" id="statusBar">Se conectează la server...</div>
+
+    <div id="sectorsList">
+        <p style="text-align:center;">Se încarcă sectoarele live...</p>
+    </div>
+</div>
+
+<script>
+    const BIN_ID = "66c1f10be41b4d34e4231b2c"; // Cloud Storage ID
+    const API_KEY = "$2a$10$wK1F5l4wA/vR2X1P/.6GTu7x9r8OQYjN3Y9ZgP3M3W3Y9ZgP3M3W3"; // Free Access Key
+    const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+
+    const defaultSectors = [
+        { id: "cam1", name: "Sector Camera #1", takenBy: "" },
+        { id: "cam2", name: "Sector Camera #2", takenBy: "" },
+        { id: "cam3", name: "Sector Camera #3", takenBy: "" },
+        { id: "cam4", name: "Sector Camera #4", takenBy: "" },
+        { id: "ext1", name: "Sector Exterior #1", takenBy: "" },
+        { id: "ext2", name: "Sector Exterior #2", takenBy: "" },
+        { id: "ext3", name: "Sector Exterior #3", takenBy: "" },
+        { id: "ext4", name: "Sector Exterior #4", takenBy: "" },
+        { id: "hol", name: "Sector Hol", takenBy: "" },
+        { id: "spalator", name: "Sector Spălător", takenBy: "" },
+        { id: "buda", name: "Sector Baie / WC", takenBy: "" },
+        { id: "magazie", name: "Sector Magazie Bagaje", takenBy: "" },
+        { id: "platforma", name: "Sector Platformă", takenBy: "" },
+        { id: "paraclis1", name: "Sector Paraclis #1", takenBy: "" },
+        { id: "paraclis2", name: "Sector Paraclis #2", takenBy: "" }
+    ];
+
+    document.getElementById("studentName").value = localStorage.getItem("my_student_name") || "";
+
+    function saveName() {
+        const name = document.getElementById("studentName").value.trim();
+        localStorage.setItem("my_student_name", name);
+        loadData();
+    }
+
+    let currentSectorsData = [];
+
+    async function loadData() {
+        try {
+            const res = await fetch(API_URL + "/latest", {
+                headers: { "X-Master-Key": API_KEY }
+            });
+            const data = await res.json();
+            currentSectorsData = data.record || defaultSectors;
+            renderSectors(currentSectorsData);
+            document.getElementById("statusBar").innerText = "Sincronizat live • " + new Date().toLocaleTimeString();
+        } catch (e) {
+            document.getElementById("statusBar").innerText = "Eroare la conectare. Se reîncearcă...";
+        }
+    }
+
+    function renderSectors(savedData) {
+        const container = document.getElementById("sectorsList");
+        container.innerHTML = "";
+
+        const currentName = document.getElementById("studentName").value.trim();
+        const userHasSector = savedData.some(s => s.takenBy && s.takenBy.toLowerCase() === currentName.toLowerCase() && currentName !== "");
+
+        savedData.forEach((sector, index) => {
+            const card = document.createElement("div");
+            card.className = "sector-card";
+
+            let actionArea = "";
+
+            if (sector.takenBy) {
+                if (currentName !== "" && sector.takenBy.toLowerCase() === currentName.toLowerCase()) {
+                    actionArea = `<button class="btn btn-release" onclick="releaseSector(${index})">Renunță / Schimbă</button>`;
+                } else {
+                    actionArea = `<button class="btn btn-disabled" disabled>Ocupat: ${sector.takenBy}</button>`;
+                }
+            } else {
+                if (userHasSector) {
+                    actionArea = `<button class="btn btn-disabled" disabled>Ai deja un sector</button>`;
+                } else {
+                    actionArea = `<button class="btn btn-claim" onclick="claimSector(${index})">Alege</button>`;
+                }
+            }
+
+            card.innerHTML = `
+                <div class="sector-title">${sector.name}</div>
+                <div>${actionArea}</div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    async function updateCloud(newData) {
+        document.getElementById("statusBar").innerText = "Se salvează...";
+        try {
+            await fetch(API_URL, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Master-Key": API_KEY
+                },
+                body: JSON.stringify(newData)
+            });
+            loadData();
+        } catch (e) {
+            alert("A apărut o eroare la salvare. Încearcă din nou.");
+        }
+    }
+
+    function claimSector(index) {
+        const nameInput = document.getElementById("studentName").value.trim();
+        if (!nameInput) {
+            alert("Te rog să îți treci numele mai întâi!");
+            return;
+        }
+
+        if (currentSectorsData[index].takenBy) {
+            alert("Sectorul a fost ocupat între timp!");
+            loadData();
+            return;
+        }
+
+        currentSectorsData[index].takenBy = nameInput;
+        updateCloud(currentSectorsData);
+    }
+
+    function releaseSector(index) {
+        currentSectorsData[index].takenBy = "";
+        updateCloud(currentSectorsData);
+    }
+
+    // Încărcare inițială și verificare automată la fiecare 3 secunde
+    loadData();
+    setInterval(loadData, 3000);
+</script>
+
+</body>
+</html>
